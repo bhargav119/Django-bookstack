@@ -43,14 +43,33 @@
           </div>
           <ul class="list-group list-group-flush">
             {% for c in template_data.categories %}
-            <li class="list-group-item d-flex justify-content-between align-items-center {% if template_data.category and template_data.category.slug == c.slug %}active{% endif %}">
+            <li class="list-group-item d-flex justify-content-between align-items-center {% if template_data.category and (template_data.category == c or template_data.category.parent == c) %}active{% endif %}">
               {% if user.is_authenticated %}
               <a class="cat-label" href="{% url 'books.category' slug=c.slug %}">{{ c.name }}</a>
               {% else %}
               <a class="cat-label" href="{% url 'accounts.login' %}?next={% url 'books.category' slug=c.slug %}">{{ c.name }}</a>
               {% endif %}
+              {% if c.subcategories %}
+              <span class="toggle-icon" onclick="toggleSubcategories(this)">▶</span>
+              <span class="badge bg-secondary">{{ c.total_books }}</span>
+              {% else %}
               <span class="badge bg-secondary">{{ c.books.count }}</span>
+              {% endif %}
             </li>
+            {% if c.subcategories %}
+            <ul class="list-group list-group-flush subcategory" style="display: none;">
+              {% for sub in c.subcategories %}
+              <li class="list-group-item d-flex justify-content-between align-items-center {% if template_data.category and template_data.category == sub %}active{% endif %}">
+                {% if user.is_authenticated %}
+                <a class="cat-label" href="{% url 'books.category' slug=sub.slug %}">{{ sub.name }}</a>
+                {% else %}
+                <a class="cat-label" href="{% url 'accounts.login' %}?next={% url 'books.category' slug=sub.slug %}">{{ sub.name }}</a>
+                {% endif %}
+                <span class="badge bg-secondary">{{ sub.books.count }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
             {% endfor %}
           </ul>
         </div>
@@ -65,14 +84,33 @@
           </div>
           <ul class="list-group list-group-flush">
             {% for c in template_data.categories %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
+            <li class="list-group-item d-flex justify-content-between align-items-center {% if template_data.category and (template_data.category == c or template_data.category.parent == c) %}active{% endif %}">
               {% if user.is_authenticated %}
               <a href="{% url 'books.category' slug=c.slug %}">{{ c.name }}</a>
               {% else %}
               <a href="{% url 'accounts.login' %}?next={% url 'books.category' slug=c.slug %}">{{ c.name }}</a>
               {% endif %}
+              {% if c.subcategories %}
+              <span class="toggle-icon" onclick="toggleSubcategories(this)">▶</span>
+              <span class="badge bg-secondary">{{ c.total_books }}</span>
+              {% else %}
               <span class="badge bg-secondary">{{ c.books.count }}</span>
+              {% endif %}
             </li>
+            {% if c.subcategories %}
+            <ul class="list-group list-group-flush subcategory" style="display: none;">
+              {% for sub in c.subcategories %}
+              <li class="list-group-item d-flex justify-content-between align-items-center {% if template_data.category and template_data.category == sub %}active{% endif %}">
+                {% if user.is_authenticated %}
+                <a href="{% url 'books.category' slug=sub.slug %}">{{ sub.name }}</a>
+                {% else %}
+                <a href="{% url 'accounts.login' %}?next={% url 'books.category' slug=sub.slug %}">{{ sub.name }}</a>
+                {% endif %}
+                <span class="badge bg-secondary">{{ sub.books.count }}</span>
+              </li>
+              {% endfor %}
+            </ul>
+            {% endif %}
             {% endfor %}
           </ul>
         </div>
@@ -106,19 +144,17 @@
             <li class="page-item">
               <a class="page-link" href="{% if template_data.category %}{% url 'books.category' slug=template_data.category.slug %}{% else %}{% url 'books.index' %}{% endif %}?{% if template_data.search_term %}search={{ template_data.search_term }}&{% endif %}page={{ template_data.books.previous_page_number }}">Previous</a>
             </li>
-            {% else %}
-            <li class="page-item disabled">
-              <span class="page-link">Previous</span>
-            </li>
             {% endif %}
+
+            {% for num in template_data.books.paginator.page_range %}
+            <li class="page-item {% if num == template_data.books.number %}active{% endif %}">
+              <a class="page-link" href="{% if template_data.category %}{% url 'books.category' slug=template_data.category.slug %}{% else %}{% url 'books.index' %}{% endif %}?{% if template_data.search_term %}search={{ template_data.search_term }}&{% endif %}page={{ num }}">{{ num }}</a>
+            </li>
+            {% endfor %}
 
             {% if template_data.books.has_next %}
             <li class="page-item">
               <a class="page-link" href="{% if template_data.category %}{% url 'books.category' slug=template_data.category.slug %}{% else %}{% url 'books.index' %}{% endif %}?{% if template_data.search_term %}search={{ template_data.search_term }}&{% endif %}page={{ template_data.books.next_page_number }}">Next</a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-              <span class="page-link">Next</span>
             </li>
             {% endif %}
           </ul>

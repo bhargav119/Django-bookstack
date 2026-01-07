@@ -49,5 +49,14 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // Toggle subcategories
+  window.toggleSubcategories = function(element) {
+    var sub = element.parentElement.nextElementSibling;
+    if (sub && sub.classList.contains('subcategory')) {
+      var isHidden = sub.style.display === 'none' || sub.style.display === '';
+      sub.style.display = isHidden ? 'block' : 'none';
+      element.textContent = isHidden ? '▼' : '▶';
+    }
+  };
 
 });

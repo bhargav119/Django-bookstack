@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.core.paginator import Paginator
+from django.db.models import Prefetch
 import os
 
 
@@ -62,7 +63,7 @@ def index(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    categories = Category.objects.all()
+    categories = Category.objects.filter(parent=None).prefetch_related(Prefetch('subcategories', queryset=Category.objects.order_by('name')))
 
     template_data = {}
     template_data['title'] = 'Books'
@@ -85,7 +86,7 @@ def category(request, slug):
     template_data['title'] = f"Category: {cat.name}"
     template_data['books'] = page_obj
     template_data['category'] = cat
-    template_data['categories'] = Category.objects.all()
+    template_data['categories'] = Category.objects.filter(parent=None).prefetch_related(Prefetch('subcategories', queryset=Category.objects.order_by('name')))
     return render(request, 'books/index.html', {'template_data': template_data})
 
 def show(request, id):

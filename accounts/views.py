@@ -3,6 +3,9 @@ from django.contrib.auth import login as auth_login, authenticate, logout as aut
 from .forms import CustomUserCreationForm, CustomErrorList
 from django.shortcuts import redirect
 from django.contrib.auth.decorators import login_required
+import logging
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def logout(request):
@@ -12,34 +15,44 @@ def logout(request):
 def login(request):
     template_data = {}
     template_data['title'] = 'Login'
-    # Accept both GET and HEAD so automated/HEAD requests don't return None
-    if request.method in ('GET', 'HEAD'):
-        return render(request, 'accounts/login.html', {'template_data': template_data})
-    elif request.method == 'POST':
-        user = authenticate(request, username = request.POST['username'], password = request.POST['password'])
-        if user is None:
-            template_data['error'] = 'The username or password is incorrect.'
+    try:
+        # Accept both GET and HEAD so automated/HEAD requests don't return None
+        if request.method in ('GET', 'HEAD'):
             return render(request, 'accounts/login.html', {'template_data': template_data})
-        else:
-            auth_login(request, user)
-            # Respect `next` if provided (either as GET on the login page or POSTed from a form)
-            next_url = request.GET.get('next') or request.POST.get('next')
-            if next_url:
-                return redirect(next_url)
-            return redirect('home.index')
+        elif request.method == 'POST':
+            user = authenticate(request, username = request.POST['username'], password = request.POST['password'])
+            if user is None:
+                template_data['error'] = 'The username or password is incorrect.'
+                return render(request, 'accounts/login.html', {'template_data': template_data})
+            else:
+                auth_login(request, user)
+                # Respect `next` if provided (either as GET on the login page or POSTed from a form)
+                next_url = request.GET.get('next') or request.POST.get('next')
+                if next_url:
+                    return redirect(next_url)
+                return redirect('home.index')
+    except Exception as e:
+        logger.error(f"Error during login: {str(e)}")
+        template_data['error'] = 'An error occurred during login. Please try again.'
+        return render(request, 'accounts/login.html', {'template_data': template_data})
 
 def signup(request):
     template_data = {}
     template_data['title'] = 'Sign Up'
 
-    if request.method == 'GET':
-        template_data['form'] = CustomUserCreationForm()
-        return render(request, 'accounts/signup.html', {'template_data': template_data})
-    elif request.method == 'POST':
-        form = CustomUserCreationForm(request.POST, error_class=CustomErrorList)
-        if form.is_valid():
-            form.save()
-            return redirect('accounts.login')
-        else:
-            template_data['form'] = form
+    try:
+        if request.method == 'GET':
+            template_data['form'] = CustomUserCreationForm()
             return render(request, 'accounts/signup.html', {'template_data': template_data})
+        elif request.method == 'POST':
+            form = CustomUserCreationForm(request.POST, error_class=CustomErrorList)
+            if form.is_valid():
+                form.save()
+                return redirect('accounts.login')
+            else:
+                template_data['form'] = form
+                return render(request, 'accounts/signup.html', {'template_data': template_data})
+    except Exception as e:
+        logger.error(f"Error during signup: {str(e)}")
+        template_data['error'] = 'An error occurred during signup. Please try again.'
+        return render(request, 'accounts/signup.html', {'template_data': template_data})

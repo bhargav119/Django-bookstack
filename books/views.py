@@ -6,6 +6,9 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.core.paginator import Paginator
 from django.db.models import Prefetch
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -22,11 +25,15 @@ def download_pdf(request, id):
     if not os.path.exists(file_path):
         raise Http404("PDF file not found")
 
-    fp = open(file_path, 'rb')
-    response = FileResponse(fp, content_type='application/pdf')
-    filename = os.path.basename(book.pdf.name)
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    return response
+    try:
+        fp = open(file_path, 'rb')
+        response = FileResponse(fp, content_type='application/pdf')
+        filename = os.path.basename(book.pdf.name)
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
+    except Exception as e:
+        logger.error(f"Error downloading PDF for book {id}: {str(e)}")
+        raise Http404("Error accessing PDF file")
 
 
 @login_required
@@ -44,13 +51,17 @@ def view_pdf(request, id):
     if not os.path.exists(file_path):
         raise Http404("PDF file not found")
 
-    fp = open(file_path, 'rb')
-    response = FileResponse(fp, content_type='application/pdf')
-    filename = os.path.basename(book.pdf.name)
-    response['Content-Disposition'] = f'inline; filename="{filename}"'
-    # Ensure sameorigin framing allowed
-    response['X-Frame-Options'] = 'SAMEORIGIN'
-    return response
+    try:
+        fp = open(file_path, 'rb')
+        response = FileResponse(fp, content_type='application/pdf')
+        filename = os.path.basename(book.pdf.name)
+        response['Content-Disposition'] = f'inline; filename="{filename}"'
+        # Ensure sameorigin framing allowed
+        response['X-Frame-Options'] = 'SAMEORIGIN'
+        return response
+    except Exception as e:
+        logger.error(f"Error viewing PDF for book {id}: {str(e)}")
+        raise Http404("Error accessing PDF file")
 
 def index(request):
     search_term = request.GET.get('search')
@@ -90,49 +101,64 @@ def category(request, slug):
     return render(request, 'books/index.html', {'template_data': template_data})
 
 def show(request, id):
-    book = Book.objects.get(id=id)
-    reviews = Review.objects.filter(book=book)
+    try:
+        book = get_object_or_404(Book, id=id)
+        reviews = Review.objects.filter(book=book)
 
-    template_data = {}
-    template_data['title'] = book.name
-    template_data['book'] = book
-    template_data['reviews'] = reviews
-    return render(request, 'books/show.html', {'template_data': template_data})
+        template_data = {}
+        template_data['title'] = book.name
+        template_data['book'] = book
+        template_data['reviews'] = reviews
+        return render(request, 'books/show.html', {'template_data': template_data})
+    except Exception as e:
+        logger.error(f"Error loading book {id}: {str(e)}")
+        raise Http404("Book not found")
 
 @login_required
 def create_review(request, id):
-    if request.method == 'POST' and request.POST['comment'] != '':
-        book = Book.objects.get(id=id)
-        review = Review()
-        review.comment = request.POST['comment']
-        review.book = book
-        review.user = request.user
-        review.save()
-        return redirect('books.show', id=id)
-    else:
+    try:
+        book = get_object_or_404(Book, id=id)
+        if request.method == 'POST' and request.POST['comment'] != '':
+            review = Review()
+            review.comment = request.POST['comment']
+            review.book = book
+            review.user = request.user
+            review.save()
+            return redirect('books.show', id=id)
+        else:
+            return redirect('books.show', id=id)
+    except Exception as e:
+        logger.error(f"Error creating review for book {id}: {str(e)}")
         return redirect('books.show', id=id)
 
 @login_required
 def edit_review(request, id, review_id):
-    review = get_object_or_404(Review, id=review_id)
-    if request.user != review.user:
-        return redirect('books.show', id=id)
+    try:
+        review = get_object_or_404(Review, id=review_id)
+        if request.user != review.user:
+            return redirect('books.show', id=id)
 
-    if request.method == 'GET':
-        template_data = {}
-        template_data['title'] = 'Edit Review'
-        template_data['review'] = review
-        return render(request, 'books/edit_review.html', {'template_data': template_data})
-    elif request.method == 'POST' and request.POST['comment'] != '':
-        review = Review.objects.get(id=review_id)
-        review.comment = request.POST['comment']
-        review.save()
-        return redirect('books.show', id=id)
-    else:
+        if request.method == 'GET':
+            template_data = {}
+            template_data['title'] = 'Edit Review'
+            template_data['review'] = review
+            return render(request, 'books/edit_review.html', {'template_data': template_data})
+        elif request.method == 'POST' and request.POST['comment'] != '':
+            review.comment = request.POST['comment']
+            review.save()
+            return redirect('books.show', id=id)
+        else:
+            return redirect('books.show', id=id)
+    except Exception as e:
+        logger.error(f"Error editing review {review_id} for book {id}: {str(e)}")
         return redirect('books.show', id=id)
 
 @login_required
 def delete_review(request, id, review_id):
-    review = get_object_or_404(Review, id=review_id, user=request.user)
-    review.delete()
-    return redirect('books.show', id=id)
+    try:
+        review = get_object_or_404(Review, id=review_id, user=request.user)
+        review.delete()
+        return redirect('books.show', id=id)
+    except Exception as e:
+        logger.error(f"Error deleting review {review_id} for book {id}: {str(e)}")
+        return redirect('books.show', id=id)
